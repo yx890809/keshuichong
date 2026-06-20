@@ -53,7 +53,9 @@
         .modal-close { padding:5px 14px; background:#f85149; border:none; border-radius:4px; color:#fff; cursor:pointer; font-size:12px; }
         .modal-body { flex:1; padding:10px; }
         .big-canvas { width:100%; height:100%; background:#0d1117; border-radius:6px; }
-        .modal-info { padding:10px 15px; border-top:1px solid #21262d; display:flex; gap:25px; font-size:11px; background:#161b22; }
+        .modal-info { padding:10px 15px; border-top:1px solid #21262d; display:flex; gap:25px; font-size:11px; background:#161b22; align-items:center; }
+        .modal-actions { margin-left:auto; display:flex; gap:8px; }
+        .modal-actions .btn { padding:6px 14px; font-size:11px; }
         .info-item { display:flex; gap:6px; }
         .info-label { color:#8b949e; }
         .info-value { color:#58a6ff; font-weight:bold; }
@@ -100,7 +102,7 @@
         <div class="left">
             <div class="box">
                 <div class="title">开奖数据 <span class="badge" id="drawCount">0期</span></div>
-                <textarea id="drawInput" readonly style="height:120px;"></textarea>
+                <textarea id="drawInput" readonly style="height:130px;"></textarea>
             </div>
 
             <!-- 外部数据接入 -->
@@ -119,6 +121,7 @@
                 </div>
                 <div id="apiStatus" style="font-size:10px;color:#8b949e;margin-top:8px;"></div>
                 <div id="refreshStatus" style="font-size:10px;color:#8b949e;margin-top:4px;"></div>
+                <div id="dataStatus" style="font-size:10px;color:#58a6ff;margin-top:4px;"></div>
             </div>
 
             <div class="box">
@@ -208,6 +211,10 @@
                 <div class="info-item"><span class="info-label">总期数:</span><span class="info-value" id="mTotal">0</span></div>
                 <div class="info-item"><span class="info-label">号码数:</span><span class="info-value" id="mCount">0</span></div>
                 <div class="info-item"><span class="info-label">定位:</span><span class="info-value" id="mPos">前三</span></div>
+                <div class="modal-actions">
+                    <button class="btn btn-blue" onclick="copyGroupNumbers()">复制号码</button>
+                    <button class="btn btn-green" onclick="saveTrendFromChart()">保存趋势图</button>
+                </div>
             </div>
         </div>
     </div>
@@ -273,16 +280,22 @@
         }
 
         function updateCharts(n) {
+            console.log('========================================');
             console.log('updateCharts called, n=' + n + ', groups.length=' + groups.length);
             
             var grid = document.getElementById('chartsGrid');
+            console.log('chartsGrid element:', grid);
             grid.innerHTML = '';
+            console.log('chartsGrid cleared');
             
             var actualLen = Math.min(n, groups.length);
             console.log('Actual charts to create: ' + actualLen);
             
             for (var i = 0; i < actualLen; i++) {
-                console.log('Loop iteration ' + i + ', groups[' + i + '] exists: ' + (groups[i] ? 'yes' : 'no'));
+                console.log('------------------------');
+                console.log('Loop iteration ' + i);
+                console.log('groups[' + i + '] exists:', groups[i] ? 'yes' : 'no');
+                console.log('groups[' + i + '] length:', groups[i] ? groups[i].length : 'undefined');
                 
                 if (groups[i] && groups[i].length > 0) {
                     var box = document.createElement('div');
@@ -310,8 +323,11 @@
                     
                     drawChart(canvas, groups[i], i, false);
                     console.log('Created chart ' + (i + 1));
+                    console.log('Box appended to grid:', grid.children.length + ' children');
                 }
             }
+            console.log('========================================');
+            console.log('updateCharts finished, grid has ' + grid.children.length + ' children');
         }
 
         function parseDraws(input) {
@@ -342,6 +358,7 @@
         }
 
         function getPosNum(num) {
+            if (!num) return -1;
             if (posType === 'front') return parseInt(num.substring(0, 3), 10);
             if (posType === 'middle') return parseInt(num.substring(1, 4), 10);
             return parseInt(num.substring(2, 5), 10);
@@ -385,7 +402,12 @@
             for (var i = 0; i < group.length; i++) set[group[i]] = true;
             var hitResults = [];
             for (var i = 0; i < cnt; i++) {
-                hitResults.push(set[getPosNum(drawData[startIdx + i].num)] ? 1 : 0);
+                var dataItem = drawData[startIdx + i];
+                if (dataItem && dataItem.num) {
+                    hitResults.push(set[getPosNum(dataItem.num)] ? 1 : 0);
+                } else {
+                    hitResults.push(0);
+                }
             }
 
             ctx.strokeStyle = '#1a1a1a';
@@ -527,7 +549,9 @@
             var step = isBig ? Math.ceil(cnt / 15) : Math.ceil(cnt / 8);
             for (var i = 0; i < cnt; i += step) {
                 var x = sx(i) + cw / 2;
-                ctx.fillText(drawData[startIdx + i].issue.substring(4), x, h - 6);
+                var dataItem = drawData[startIdx + i];
+                var issueText = dataItem && dataItem.issue ? dataItem.issue.substring(4) : '';
+                ctx.fillText(issueText, x, h - 6);
             }
 
             if (isBig) {
@@ -927,6 +951,7 @@
         }
 
         function generateGroups(n) {
+            console.log('========================================');
             console.log('generateGroups called with n=' + n);
             
             var btns = document.getElementsByClassName('golden-btn');
@@ -939,6 +964,7 @@
             var baseNums = null;
             if (base) {
                 baseNums = parseBase(base);
+                console.log('Using base numbers: ' + baseNums.length + ' numbers');
                 if (baseNums.length < n) {
                     alert('大底至少需要' + n + '个号码');
                     return;
@@ -947,6 +973,7 @@
 
             groups = createGroups(n, baseNums);
             console.log('Groups created: ' + groups.length + ' groups');
+            console.log('Group sizes:', groups.map(function(g) { return g.length; }));
             
             showGroups();
             updateCharts(n);
@@ -1067,6 +1094,73 @@
                 closeModal();
             }
         };
+        
+        function copyGroupNumbers() {
+            if (currentChartIdx < 0 || !groups[currentChartIdx]) return;
+            
+            var nums = groups[currentChartIdx];
+            var text = nums.map(function(n) { 
+                return String(n).padStart(3, '0'); 
+            }).join('\n');
+            
+            navigator.clipboard.writeText(text).then(function() {
+                alert('号码已复制到剪贴板！\n\n' + text.substring(0, 100) + (text.length > 100 ? '...' : ''));
+            }).catch(function(err) {
+                // 降级方案
+                var textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('号码已复制到剪贴板！');
+            });
+        }
+        
+        function saveTrendFromChart() {
+            if (currentChartIdx < 0 || !groups[currentChartIdx]) return;
+            
+            var group = groups[currentChartIdx];
+            var hitData = calcHitData(group, drawData);
+            
+            // 获取命中数据（0=中，1=未中）
+            var trendStr = hitData.map(function(h) { 
+                return h.hit ? '0' : '1'; 
+            }).join('');
+            
+            var name = prompt('请输入趋势图名称:', '黄金分割' + (currentChartIdx + 1) + '趋势');
+            if (!name) return;
+            
+            // 创建趋势图对象
+            var newTrend = {
+                id: Date.now(),
+                name: name,
+                data: trendStr,
+                created: new Date().toLocaleString()
+            };
+            
+            trendPatterns.push(newTrend);
+            saveTrendList();
+            loadTrendList();
+            
+            alert('趋势图已保存到方案备用！');
+            closeModal();
+        }
+        
+        function checkHit(group, num) {
+            var posNum = getPosNum(num);
+            return group.indexOf(posNum) !== -1;
+        }
+        
+        function calcHitData(group, data) {
+            var result = [];
+            for (var i = 0; i < data.length; i++) {
+                var num = data[i].num;
+                var hit = checkHit(group, num);
+                result.push({ hit: hit, period: data[i].period });
+            }
+            return result;
+        }
 
         window.onload = function() {
             console.log('Page loaded');
@@ -1151,8 +1245,21 @@
                             }
                         }
                         
+                        // 按日期和期数排序（最新的在前）
                         drawData.sort(function(a, b) {
-                            return b.period.localeCompare(a.period);
+                            // 期号格式：20260620-0037
+                            var partsA = a.period.split('-');
+                            var partsB = b.period.split('-');
+                            
+                            // 先按日期排序
+                            if (partsA[0] !== partsB[0]) {
+                                return partsB[0].localeCompare(partsA[0]);
+                            }
+                            
+                            // 日期相同则按期数排序
+                            var numA = partsA.length > 1 ? parseInt(partsA[1]) : 0;
+                            var numB = partsB.length > 1 ? parseInt(partsB[1]) : 0;
+                            return numB - numA;
                         });
                         
                         if (drawData.length > 500) {
@@ -1343,6 +1450,10 @@
             clearEditor();
         }
 
+        function saveTrendList() {
+            localStorage.setItem('trendPatterns', JSON.stringify(trendPatterns));
+        }
+        
         function loadTrendList() {
             var list = document.getElementById('trendList');
             if (trendPatterns.length === 0) {
@@ -1702,9 +1813,7 @@
                 statusEl.style.color = '#58a6ff';
             }
             
-            var proxyUrl = 'http://127.0.0.1:8888/?url=' + encodeURIComponent(url);
-            
-            fetch(proxyUrl, {
+            fetch(url, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json, text/plain, */*',
@@ -1836,6 +1945,9 @@
             }
             
             if (results.length > 0) {
+                console.log('API返回 ' + results.length + ' 条数据');
+                console.log('合并前本地已有 ' + drawData.length + ' 条数据');
+                
                 // 限制最多300期（API获取的新数据）
                 var maxCount = 300;
                 if (results.length > maxCount) {
@@ -1848,11 +1960,29 @@
                     existingPeriods[drawData[i].period] = true;
                 }
                 
+                console.log('本地已有的期号:', Object.keys(existingPeriods));
+                
                 // 添加新数据（只添加不存在的期号）
+                var newCount = 0;
                 for (var j = 0; j < results.length; j++) {
                     if (!existingPeriods[results[j].period]) {
                         drawData.push(results[j]);
+                        newCount++;
                     }
+                }
+                console.log('本次刷新新增 ' + newCount + ' 条数据，当前总计 ' + drawData.length + ' 条');
+                
+                if (newCount > 0) {
+                    var statusEl = document.getElementById('apiStatus');
+                    if (statusEl) {
+                        statusEl.textContent = '🎉 新增 ' + newCount + ' 期数据！当前总计: ' + drawData.length + '期';
+                        statusEl.style.color = '#238636';
+                    }
+                }
+                
+                if (newCount === 0 && results.length > 0) {
+                    console.log('没有新增数据，API返回的期号：', results.map(function(item) { return item.period; }));
+                    console.log('本地已有的期号：', drawData.map(function(item) { return item.period; }));
                 }
                 
                 // 过滤无效数据
@@ -1875,7 +2005,16 @@
                 
                 document.getElementById('drawInput').value = formatDrawData(drawData);
                 document.getElementById('drawCount').textContent = drawData.length + '期';
-                loadDraws();
+                
+                var dataStatusEl = document.getElementById('dataStatus');
+                if (dataStatusEl) {
+                    dataStatusEl.textContent = '本地存储: ' + drawData.length + '期 | 最大: 500期';
+                }
+                
+                var posName = posType === 'front' ? '前三' : (posType === 'middle' ? '中三' : '后三');
+                document.getElementById('status').textContent = 
+                    '已导入' + drawData.length + '期开奖数据 | 定位: ' + posName;
+                
                 if (typeof currentN !== 'undefined') {
                     updateCharts(currentN);
                 }
