@@ -370,7 +370,7 @@
                 <div class="modal-title" id="modalTitle">黄金分割1</div>
                 <button class="modal-close" onclick="closeModal()">关闭</button>
             </div>
-            <div class="modal-body" id="modalBody">
+            <div class="modal-body">
                 <canvas id="bigCanvas" class="big-canvas"></canvas>
             </div>
             <div class="modal-info">
@@ -446,11 +446,9 @@
         var drawData = [];
         var groups = [];
         var posType = 'back'; // 默认选择后三
-        var lastLotteryNumber = '';
         var chartCount = 0;
         var currentChartIdx = 0;
         var currentN = 0; // 当前黄金分割数量
-        var currentMode = 'golden'; // 'golden' 或 'split'
 
         function updateCurrentDrawDisplay() {
             if (drawData.length > 0) {
@@ -484,8 +482,6 @@
                 periodEl.textContent = period || '--';
             }
             
-            var isNumberChanged = number !== lastLotteryNumber;
-            
             if (numbersContainer) {
                 if (number && number.length === 5) {
                     var html = '';
@@ -503,8 +499,7 @@
                 }
             }
             
-            if (timeEl && isNumberChanged) {
-                lastLotteryNumber = number;
+            if (timeEl) {
                 var now = new Date();
                 var timeStr = now.getFullYear() + '-' + 
                     String(now.getMonth() + 1).padStart(2, '0') + '-' + 
@@ -681,23 +676,13 @@
             var w = canvas.width;
             var h = canvas.height;
             
-            var existingContainer = canvas.parentNode;
-            var container;
-            
-            if (existingContainer && existingContainer.dataset.engineContainer) {
-                container = existingContainer;
-            } else {
-                container = document.createElement('div');
-                container.style.position = 'relative';
-                container.style.width = w + 'px';
-                container.style.height = h + 'px';
-                container.dataset.engineContainer = 'true';
-                canvas.parentNode.insertBefore(container, canvas);
-                container.appendChild(canvas);
-            }
-            canvas.style.display = 'block';
-            canvas.style.width = w + 'px';
-            canvas.style.height = h + 'px';
+            var container = document.createElement('div');
+            container.style.position = 'relative';
+            container.style.width = w + 'px';
+            container.style.height = h + 'px';
+            canvas.parentNode.insertBefore(container, canvas);
+            container.appendChild(canvas);
+            canvas.style.display = 'none';
             
             var engine = new TradingChartEngine.RenderEngine({
                 container: container,
@@ -788,17 +773,10 @@
             engine.setEMAData(emaData);
             engine.setBollingerData(bollinger.upper, bollinger.mid, bollinger.lower);
             
-            if (isBig) {
-                if (window.bigChartEngine) {
-                    window.bigChartEngine.destroy();
-                }
-                window.bigChartEngine = engine;
-            } else {
-                if (chartEngines[chartIdx]) {
-                    chartEngines[chartIdx].destroy();
-                }
-                chartEngines[chartIdx] = engine;
+            if (chartEngines[chartIdx]) {
+                chartEngines[chartIdx].destroy();
             }
+            chartEngines[chartIdx] = engine;
             
             return engine;
         }
@@ -1426,7 +1404,6 @@
             console.log('========================================');
             console.log('generateGroups called with n=' + n);
             
-            currentMode = 'golden';
             currentN = n; // 保存当前的分组数量
             
             var btns = document.getElementsByClassName('golden-btn');
@@ -1613,15 +1590,6 @@
 
         function closeModal() {
             document.getElementById('modal').style.display = 'none';
-            
-            var bigCanvas = document.getElementById('bigCanvas');
-            var ctx = bigCanvas.getContext('2d');
-            ctx.clearRect(0, 0, bigCanvas.width, bigCanvas.height);
-            
-            if (window.bigChartEngine) {
-                window.bigChartEngine.destroy();
-                window.bigChartEngine = null;
-            }
         }
 
         document.getElementById('modal').onclick = function(e) {
@@ -1837,29 +1805,20 @@
             console.log('========================================');
             console.log('refreshChartsIfNeeded called at ' + new Date().toLocaleTimeString());
             console.log('Current state:');
-            console.log('  - currentMode=' + currentMode);
             console.log('  - currentN=' + currentN);
             console.log('  - groups.length=' + groups.length);
             console.log('  - drawData.length=' + drawData.length);
             
-            if (currentMode === 'golden' && currentN > 0 && groups.length > 0 && drawData.length > 0) {
-                console.log('✓ 黄金分割模式条件满足，开始刷新图表...');
+            if (currentN > 0 && groups.length > 0 && drawData.length > 0) {
+                console.log('✓ 条件满足，开始刷新图表...');
                 showGroups();
                 updateCharts(currentN);
                 lastUpdateTime = new Date();
                 console.log('✓ 图表刷新完成，时间戳: ' + lastUpdateTime.toLocaleTimeString());
-            } else if (currentMode === 'split' && window.splitResults && window.splitResults.length > 0 && drawData.length > 0) {
-                console.log('✓ 自动分割模式条件满足，开始刷新图表...');
-                displaySplitCharts(window.splitResults);
-                lastUpdateTime = new Date();
-                console.log('✓ 图表刷新完成，时间戳: ' + lastUpdateTime.toLocaleTimeString());
             } else {
                 console.log('✗ 条件不满足，跳过刷新');
-                if (currentMode !== 'golden' && currentMode !== 'split') console.log('  - currentMode不是golden或split');
-                if (currentMode === 'golden' && currentN === 0) console.log('  - currentN为0，未选择黄金分割类型');
-                if (currentMode === 'golden' && groups.length === 0) console.log('  - groups为空，尚未生成分组');
-                if (currentMode === 'split' && !window.splitResults) console.log('  - window.splitResults不存在');
-                if (currentMode === 'split' && window.splitResults && window.splitResults.length === 0) console.log('  - window.splitResults长度为0');
+                if (currentN === 0) console.log('  - currentN为0，未选择黄金分割类型');
+                if (groups.length === 0) console.log('  - groups为空，尚未生成分组');
                 if (drawData.length === 0) console.log('  - drawData为空，暂无开奖数据');
             }
         }
@@ -1867,24 +1826,14 @@
         function forceRefreshAllCharts() {
             console.log('========================================');
             console.log('forceRefreshAllCharts called - 强制刷新所有图表');
-            console.log('  - currentMode:', currentMode);
-            console.log('  - currentN:', currentN);
-            console.log('  - groups.length:', groups.length);
-            console.log('  - window.splitResults:', window.splitResults ? '存在，长度=' + window.splitResults.length : '不存在');
             if (drawData.length > 0) {
                 console.log('  - drawData有数据，准备刷新');
-                if (currentMode === 'golden' && currentN > 0 && groups.length > 0) {
-                    console.log('  - 进入黄金分割模式分支');
+                if (currentN > 0 && groups.length > 0) {
+                    console.log('  - 有分组数据，调用updateCharts');
                     showGroups();
                     updateCharts(currentN);
-                } else if (currentMode === 'split' && window.splitResults && window.splitResults.length > 0) {
-                    console.log('  - 进入自动分割模式分支');
-                    displaySplitCharts(window.splitResults);
                 } else {
-                    console.log('  - 无有效分组数据，跳过图表刷新');
-                    console.log('    - currentMode !== split:', currentMode !== 'split');
-                    console.log('    - window.splitResults不存在:', !window.splitResults);
-                    console.log('    - window.splitResults长度为0:', window.splitResults && window.splitResults.length === 0);
+                    console.log('  - 无分组数据，跳过图表刷新');
                 }
                 updateCurrentDrawDisplay();
                 console.log('✓ 强制刷新完成');
@@ -2839,7 +2788,6 @@
         
         // 手动模式下显示第一次分割结果
         function displayManualFirstResult(results) {
-            currentMode = 'split';
             var container = document.getElementById('autoResult');
             var r = results[0];
             
@@ -2874,8 +2822,6 @@
             container.innerHTML = html;
             
             window.splitResults = results;
-            
-            displaySplitCharts(results);
             
             setTimeout(function() {
                 // 绑定复制按钮
@@ -2994,7 +2940,6 @@
         }
 
         function displayAutoResult(results) {
-            currentMode = 'split';
             var container = document.getElementById('autoResult');
             var html = '';
             
@@ -3134,105 +3079,6 @@
                     };
                 }
             }, 100);
-            
-            displaySplitCharts(results);
-        }
-
-        function displaySplitCharts(results) {
-            var grid = document.getElementById('chartsGrid');
-            grid.innerHTML = '';
-            
-            var allCharts = [];
-            
-            for (var i = 0; i < results.length; i++) {
-                var r = results[i];
-                var roundLabel = String.fromCharCode(65 + i); 
-                var groupsToShow = [];
-                
-                if (r.allGroups.length > 4) {
-                    groupsToShow.push({ 
-                        group: r.group, 
-                        label: roundLabel + (r.bestIdx + 1),
-                        isSelected: true 
-                    });
-                } else {
-                    for (var j = 0; j < r.allGroups.length; j++) {
-                        var isSelected = j === r.bestIdx;
-                        groupsToShow.push({ 
-                            group: r.allGroups[j], 
-                            label: roundLabel + (j + 1),
-                            isSelected: isSelected 
-                        });
-                    }
-                }
-                
-                allCharts = allCharts.concat(groupsToShow);
-            }
-            
-            chartCount = allCharts.length;
-            groups = allCharts.map(function(c) { return c.group; });
-            
-            for (var i = 0; i < allCharts.length; i++) {
-                var chart = allCharts[i];
-                var box = document.createElement('div');
-                box.className = 'chart-box';
-                if (chart.isSelected) {
-                    box.style.border = '2px solid #58a6ff';
-                }
-                box.onclick = (function(idx) { 
-                    return function() { openSplitModal(idx); }; 
-                })(i);
-                
-                var title = document.createElement('div');
-                title.className = 'chart-title';
-                title.textContent = chart.label;
-                
-                var hit = document.createElement('div');
-                hit.className = 'chart-hit';
-                var h = calcHit(chart.group, drawData);
-                hit.textContent = '命中: ' + h.hits + '/' + h.total;
-                
-                var canvas = document.createElement('canvas');
-                canvas.className = 'chart-canvas';
-                canvas.width = 200;
-                canvas.height = 130;
-                
-                box.appendChild(title);
-                box.appendChild(hit);
-                box.appendChild(canvas);
-                grid.appendChild(box);
-                
-                renderChartWithEngine(canvas, chart.group, i, false);
-            }
-        }
-        
-        function openSplitModal(idx) {
-            if (!groups[idx]) return;
-            currentChartIdx = idx;
-            
-            var modal = document.getElementById('modal');
-            var posName = posType === 'front' ? '前三' : (posType === 'middle' ? '中三' : '后三');
-            var h = calcHit(groups[idx], drawData);
-            
-            var grid = document.getElementById('chartsGrid');
-            var box = grid.children[idx];
-            var titleText = '后三【' + (box ? box.querySelector('.chart-title').textContent : '趋势图' + (idx + 1)) + '】频率K线(周期:1 理论周期:2)';
-            
-            document.getElementById('modalTitle').textContent = titleText;
-            document.getElementById('mHit').textContent = h.hits + '/' + h.total;
-            document.getElementById('mTotal').textContent = drawData.length + '期';
-            document.getElementById('mCount').textContent = groups[idx].length + '个';
-            document.getElementById('mPos').textContent = posName;
-            
-            modal.style.display = 'flex';
-            
-            setTimeout(function() {
-                var canvas = document.getElementById('bigCanvas');
-                var container = canvas.parentElement;
-                canvas.width = container.offsetWidth - 20;
-                canvas.height = container.offsetHeight - 20;
-                renderChartWithEngine(canvas, groups[idx], idx, true);
-            }, 50);
         }
 
         function copyFinalResult(numbers) {
